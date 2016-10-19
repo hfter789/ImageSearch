@@ -13,11 +13,8 @@ app.get('/api/imagesearch/:imageQuery', function(req, res) {
     var reqUrl = req.url;
     // we want the offset query in an object
     var reqUrlObj = url.parse(reqUrl, true);
-    var num = reqUrlObj.query && reqUrlObj.query.offset || 10;
-    if (num > 10) {
-        num = 10;
-    }
-    var apiUrl = getAPICall(req.params.imageQuery, num);
+    var offset = reqUrlObj.query && reqUrlObj.query.offset || 1;
+    var apiUrl = getAPICall(req.params.imageQuery, offset);
     https.get(apiUrl, function (apiRes) {
       console.log('statusCode:', apiRes.statusCode);
       console.log('headers:', apiRes.headers);
@@ -27,14 +24,20 @@ app.get('/api/imagesearch/:imageQuery', function(req, res) {
         body += chunk;
       });
       apiRes.on('end', function() {
-        res.send(JSON.parse(body));
+        res.send(JSON.parse(body).items.map(function pickFields(item) {
+          return {
+            url: item.link,
+            alt: item.title,
+            sourcePage: item.image.contextLink
+          };
+        }));
       });
     }).on('error', function (e) {
       console.error(e);
     });
 });
 
-function getAPICall(query, num) {
+function getAPICall(query, offset) {
     return url.format({
         protocol: 'https',
         host: 'www.googleapis.com',
@@ -42,7 +45,7 @@ function getAPICall(query, num) {
         query: {
             cx: searchEngineId,
             key: apiKey,
-            num: num,
+            start: offset,
             q: query,
             searchType: 'image'
         }
