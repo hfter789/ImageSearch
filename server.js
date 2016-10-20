@@ -8,16 +8,20 @@ var dbUrl = process.env.MONGO_URI;
 var apiKey = process.env.API_KEY;
 var searchEngineId = process.env.SEARCH_ENGINE_ID;
 var collection;
+var history = [];
 
 app.get('/api/imagesearch/:imageQuery', function(req, res) {
     var reqUrl = req.url;
     // we want the offset query in an object
     var reqUrlObj = url.parse(reqUrl, true);
     var offset = reqUrlObj.query && reqUrlObj.query.offset || 1;
-    var apiUrl = getAPICall(req.params.imageQuery, offset);
+    var imageQuery = req.params.imageQuery;
+    history.unshift({
+      term: imageQuery,
+      when: new Date().toISOString()
+    });
+    var apiUrl = getAPICall(imageQuery, offset);
     https.get(apiUrl, function (apiRes) {
-      console.log('statusCode:', apiRes.statusCode);
-      console.log('headers:', apiRes.headers);
       var body = '';
       apiRes.setEncoding('utf8');
       apiRes.on('data', function(chunk) {
@@ -35,6 +39,10 @@ app.get('/api/imagesearch/:imageQuery', function(req, res) {
     }).on('error', function (e) {
       console.error(e);
     });
+});
+
+app.get('/api/latest/imagesearch', function(req, res) {
+    res.send(history);
 });
 
 function getAPICall(query, offset) {
